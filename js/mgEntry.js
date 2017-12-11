@@ -20,9 +20,13 @@
 // var amrc_root              = "https://community.allmangasreader.com/latest_v2/";
 // var amrc_repository_backup = "https://raw.github.com/AllMangasReader-dev/mirrors/master/";
 
-var amrc_repository        = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
-var amrc_root              = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
-var amrc_repository_backup = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
+// var amrc_repository        = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
+// var amrc_root              = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
+// var amrc_repository_backup = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
+
+var amrc_repository        = "https://rawgit.com/EndOfFile/mirrors/master/";
+var amrc_root              = "https://rawgit.com/EndOfFile/mirrors/master/";
+var amrc_repository_backup = "https://rawgit.com/EndOfFile/mirrors/master/";
 
 /*** LOCAL LOADING ***/
 //To enable local loading, you must add "'unsafe-eval'" to "content_security_policy" in the manifest.json. This is not enabled by default due to security reasons.
@@ -73,11 +77,13 @@ function getMirrorsDescription(callback) {
       }
     } else {
       // First load of websites
+      console.log("Loading websites JS from: " + amrc_repository + "websites.json")
       $.ajax({
         url : amrc_repository + "websites.json",
         success : function (resp) {
           var ws = resp,
             i;
+            //var ws = JSON && JSON.parse(json) || $.parseJSON(json);
           for (i = 0; i < ws.length; i += 1) {
             console.log("Load JS from repository for " + ws[i].mirrorName);
             loadJSFromRepository(ws[i]);
