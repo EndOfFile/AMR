@@ -24,9 +24,13 @@
 // var amrc_root              = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
 // var amrc_repository_backup = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
 
-var amrc_repository        = "https://rawgit.com/EndOfFile/mirrors/master/";
-var amrc_root              = "https://rawgit.com/EndOfFile/mirrors/master/";
-var amrc_repository_backup = "https://rawgit.com/EndOfFile/mirrors/master/";
+// var amrc_repository        = "https://rawgit.com/EndOfFile/mirrors/master/";
+// var amrc_root              = "https://rawgit.com/EndOfFile/mirrors/master/";
+// var amrc_repository_backup = "https://rawgit.com/EndOfFile/mirrors/master/";
+
+var amrc_repository        = "http://127.0.0.1/";
+var amrc_root              = "http://127.0.0.1/";
+var amrc_repository_backup = "http://127.0.0.1/";
 
 /*** LOCAL LOADING ***/
 //To enable local loading, you must add "'unsafe-eval'" to "content_security_policy" in the manifest.json. This is not enabled by default due to security reasons.
@@ -39,7 +43,7 @@ var localMirrors = [];
 //##############################################################################
 function validURL(str) {
   "use strict";
-  var re = /^s?https?:\/\/[-_.!~*'()a-zA-Z0-9;\/?:\@&=+\$,%#]+$/,
+  var re = /^s?http?:\/\/[-_.!~*'()a-zA-Z0-9;\/?:\@&=+\$,%#]+$/,
     res = str.match(re);
   return res !== null && res.index === 0;
 }
@@ -488,7 +492,7 @@ function loadJSFromRepositoryForMirrors(list, pos, input) {
       list[pos].error = "Script " + input.mirrorName + " failed to be loaded... Error compiling JS code... Link : " + input.jsCode;
       console.log("Error compiling JS code: " + input.jsCode);
     } else {
-      console.log("Script " + list[pos].mirrorName + " loaded and executed.");
+      console.log("Script " + list[pos].mirrorName +  " rev: " + input.revision + " loaded and executed.");
     }
     list[pos].mirrorName = input.mirrorName;
     list[pos].mirrorIcon = input.mirrorIcon;
@@ -618,7 +622,7 @@ function loadJSFromRepositoryForActivatedMirrors(list, pos, input) {
       } else {
         list[pos].listLoaded = true;
       }
-      console.log("Script " + list[pos].mirrorName + " loaded and executed.");
+      console.log("Script " + list[pos].mirrorName + " rev: " + list[pos].revision + " loaded and executed.");
       list[pos].loadedscript = true;
     } else {
       console.log("Script " + input.mirrorName + " failed to be loaded... Error while compiling JS code... Link : " + input.jsCode);
