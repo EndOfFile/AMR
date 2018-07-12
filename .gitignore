@@ -164,3 +164,6 @@ pip-log.txt
 
 # Intellij IDE (I.E WebStorm)
 .idea/
+
+# Vscode IDE
+*.vscode
