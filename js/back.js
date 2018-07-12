@@ -26,7 +26,7 @@ var autoBookmarkScans = false;
 var prefetchChapter = false;
 var nextRight = false;
 var idStat;
-var timespent=0;
+var timespent = 0;
 var starttime = new Date().getTime();
 var updatetime = 10000;
 var isActive = true;
@@ -36,16 +36,16 @@ var debugTimes = false;
 var timeoutAMRbar = 0;
 
 function getMirrorScript() {
-    "use strict";
-    return currentMirror;
+  "use strict";
+  return currentMirror;
 }
 
 function removeBanner() {
   var obj = {};
   obj.action = "parameters";
-  chrome.runtime.sendMessage(obj, function(response) {
+  chrome.runtime.sendMessage(obj, function (response) {
     if (response.displayAds === 0) {
-       getMirrorScript().removeBanners(document, window.location.href);
+      getMirrorScript().removeBanners(document, window.location.href);
     }
   });
 }
@@ -53,111 +53,123 @@ function removeBanner() {
 function initPage() {
   //console.log("initPage");
   if (getMirrorScript().isCurrentPageAChapterPage(document, window.location.href)) {
-     setKeys();
-     //console.log("found mirror for current page");
-     chrome.runtime.sendMessage({"action": "parameters"}, function(response) {
-        if (response.lrkeys == 1) {
-          useLeftRightKeys = true;
-        }
-        if (response.autobm == 1) {
-          autoBookmarkScans = true;
-        }
-        if (response.prefetch == 1) {
-          prefetchChapter = true;
-        }
-        if (response.rightnext == 1) {
-          nextRight = true;
-        }
-        if (response.sendstats == 1) {
-          sendStats = true;
-        }
+    setKeys();
+    //console.log("found mirror for current page");
+    chrome.runtime.sendMessage({
+      "action": "parameters"
+    }, function (response) {
+      if (response.lrkeys == 1) {
+        useLeftRightKeys = true;
+      }
+      if (response.autobm == 1) {
+        autoBookmarkScans = true;
+      }
+      if (response.prefetch == 1) {
+        prefetchChapter = true;
+      }
+      if (response.rightnext == 1) {
+        nextRight = true;
+      }
+      if (response.sendstats == 1) {
+        sendStats = true;
+      }
 
-        getMirrorScript().getInformationsFromCurrentPage(document, window.location.href, function(res) {
-          jQuery.data(document.body, "curpageinformations", res);
-          //console.log(res);
-          //console.log(jQuery.data(document.body, "curpageinformations"));
-          //console.log(res);
-          chrome.runtime.sendMessage({action: "mangaInfos", url: res.currentMangaURL}, function(resp) {
-            chrome.runtime.sendMessage({action: "barState"}, function(barState) {
-              createDataDiv(res);
-              if (response.displayChapters == 1) {
-                var imagesUrl = getMirrorScript().getListImages(document, window.location.href);
-                var select = getMirrorScript().getMangaSelectFromPage(document, window.location.href);
-                var isSel = true;
-                if (select === null) {
-                  var selectIns = $("<select></select>");
-                  selectIns.data("mangaCurUrl", res.currentChapterURL);
-                  getMirrorScript().getListChaps(res.currentMangaURL, res.name, selectIns, callbackListChaps);
-                  isSel = false;
+      getMirrorScript().getInformationsFromCurrentPage(document, window.location.href, function (res) {
+        jQuery.data(document.body, "curpageinformations", res);
+        //console.log(res);
+        //console.log(jQuery.data(document.body, "curpageinformations"));
+        //console.log(res);
+        chrome.runtime.sendMessage({
+          action: "mangaInfos",
+          url: res.currentMangaURL
+        }, function (resp) {
+          chrome.runtime.sendMessage({
+            action: "barState"
+          }, function (barState) {
+            createDataDiv(res);
+            if (response.displayChapters == 1) {
+              var imagesUrl = getMirrorScript().getListImages(document, window.location.href);
+              var select = getMirrorScript().getMangaSelectFromPage(document, window.location.href);
+              var isSel = true;
+              if (select === null) {
+                var selectIns = $("<select></select>");
+                selectIns.data("mangaCurUrl", res.currentChapterURL);
+                getMirrorScript().getListChaps(res.currentMangaURL, res.name, selectIns, callbackListChaps);
+                isSel = false;
+              }
+              getMirrorScript().doSomethingBeforeWritingScans(document, window.location.href);
+              if (isSel) {
+                var whereNav;
+                if (response.newbar == 1) {
+                  whereNav = createBar(barState.barVis);
+                } else {
+                  whereNav = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
                 }
-                getMirrorScript().doSomethingBeforeWritingScans(document, window.location.href);
-                if (isSel) {
-                  var whereNav;
-                  if (response.newbar == 1) {
-                    whereNav = createBar(barState.barVis);
-                  } else {
-                    whereNav = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
-                  }
 
-                  writeNavigation(whereNav, select, res, response);
-                }
-                var where = getMirrorScript().whereDoIWriteScans(document, window.location.href);
-                amrWhereScans = where;
-                $(document.body).data("amrparameters", response);
-                //Get specific mode for currentManga
-                var curmode = -1;
-                if (resp !== null && resp.display) {
-                  curmode = resp.display;
-                }
-                //If not use res.mode
-                if (curmode == -1) {
-                  curmode = response.displayMode;
-                }
-                writeImages(where, imagesUrl, curmode, response);
+                writeNavigation(whereNav, select, res, response);
               }
-              if (response.markwhendownload === 0 && (response.addauto == 1 || resp !== null)) {
-                var obj = {"action": "readManga",
-                           "url": res.currentMangaURL,
-                           "mirror": getMirrorScript().mirrorName,
-                           "lastChapterReadName": res.currentChapter,
-                           "lastChapterReadURL": res.currentChapterURL,
-                           "name": res.name};
-                chrome.runtime.sendMessage(obj, function(response) {
-                });
-              } else {
-                if (response.markwhendownload === 1 && (response.addauto === 1 || resp !== null)) {
-                  jQuery.data(document.body, "sendwhendownloaded", {"action": "readManga",
-                           "url": res.currentMangaURL,
-                           "mirror": getMirrorScript().mirrorName,
-                           "lastChapterReadName": res.currentChapter,
-                           "lastChapterReadURL": res.currentChapterURL,
-                           "name": res.name});
-                }
+              var where = getMirrorScript().whereDoIWriteScans(document, window.location.href);
+              amrWhereScans = where;
+              $(document.body).data("amrparameters", response);
+              //Get specific mode for currentManga
+              var curmode = -1;
+              if (resp !== null && resp.display) {
+                curmode = resp.display;
               }
-              if (sendStats) {
-                var statobj = {"action": "readMgForStat",
-                           "url": res.currentMangaURL,
-                           "mirror": getMirrorScript().mirrorName,
-                           "lastChapterReadName": res.currentChapter,
-                           "lastChapterReadURL": res.currentChapterURL,
-                           "name": res.name};
-                chrome.runtime.sendMessage(statobj, function(response) {
-                  idStat = response.id;
-                  bindCalculateTime();
-                  setTimeout(function() {
-                    updateStat(true);
-                  }, updatetime);
+              //If not use res.mode
+              if (curmode == -1) {
+                curmode = response.displayMode;
+              }
+              writeImages(where, imagesUrl, curmode, response);
+            }
+            if (response.markwhendownload === 0 && (response.addauto == 1 || resp !== null)) {
+              var obj = {
+                "action": "readManga",
+                "url": res.currentMangaURL,
+                "mirror": getMirrorScript().mirrorName,
+                "lastChapterReadName": res.currentChapter,
+                "lastChapterReadURL": res.currentChapterURL,
+                "name": res.name
+              };
+              chrome.runtime.sendMessage(obj, function (response) {});
+            } else {
+              if (response.markwhendownload === 1 && (response.addauto === 1 || resp !== null)) {
+                jQuery.data(document.body, "sendwhendownloaded", {
+                  "action": "readManga",
+                  "url": res.currentMangaURL,
+                  "mirror": getMirrorScript().mirrorName,
+                  "lastChapterReadName": res.currentChapter,
+                  "lastChapterReadURL": res.currentChapterURL,
+                  "name": res.name
                 });
               }
-            });
+            }
+            if (sendStats) {
+              var statobj = {
+                "action": "readMgForStat",
+                "url": res.currentMangaURL,
+                "mirror": getMirrorScript().mirrorName,
+                "lastChapterReadName": res.currentChapter,
+                "lastChapterReadURL": res.currentChapterURL,
+                "name": res.name
+              };
+              chrome.runtime.sendMessage(statobj, function (response) {
+                idStat = response.id;
+                bindCalculateTime();
+                setTimeout(function () {
+                  updateStat(true);
+                }, updatetime);
+              });
+            }
           });
         });
       });
+    });
   }
 }
 
 function bindCalculateTime() {
-  window.onbeforeunload = function() {
+  window.onbeforeunload = function () {
     if (isActive) {
       var now = new Date().getTime();
       if (debugTimes) times[times.length] = now - starttime;
@@ -174,11 +186,11 @@ function bindCalculateTime() {
       return res;
     }
   };
-  $(window).focus(function() {
+  $(window).focus(function () {
     starttime = new Date().getTime();
     isActive = true;
   });
-  $(window).blur(function() {
+  $(window).blur(function () {
     var now = new Date().getTime();
     if (debugTimes) times[times.length] = now - starttime;
     timespent += now - starttime;
@@ -196,11 +208,13 @@ function updateStat(estimated) {
       tosend += new Date().getTime() - starttime;
     }
   }
-  var statobj = {"action": "updateMgForStat",
-             "id": idStat,
-             "time_spent": tosend};
+  var statobj = {
+    "action": "updateMgForStat",
+    "id": idStat,
+    "time_spent": tosend
+  };
   if (sendStats) {
-    chrome.runtime.sendMessage(statobj, function(response) {});
+    chrome.runtime.sendMessage(statobj, function (response) {});
   }
   setTimeout(updateStat, updatetime);
 }
@@ -219,8 +233,10 @@ function createBar(barVis) {
   divBottom.css("display", "inline-block");
   var imgBtn = $("<img src='" + chrome.extension.getURL("img/down.png") + "' width='16px;' title='Hide AMR Toolbar'/>");
   imgBtn.appendTo(divBottom);
-  imgBtn.click(function() {
-    chrome.runtime.sendMessage({action: "hideBar"}, function(response) {
+  imgBtn.click(function () {
+    chrome.runtime.sendMessage({
+      action: "hideBar"
+    }, function (response) {
       if (response.res == 1) {
         if ($("#AMRBarIn").data("temporary")) {
           $("#AMRBarIn").removeData("temporary");
@@ -228,14 +244,14 @@ function createBar(barVis) {
             clearTimeout(timeoutAMRbar);
           }
         }
-        $("#AMRBarInLtl").fadeOut('fast', function() {
+        $("#AMRBarInLtl").fadeOut('fast', function () {
           $("#AMRBar").css("text-align", "center");
           $("#AMRBarIn").fadeIn();
         });
       } else {
-        $("#AMRBarIn").fadeOut('fast', function() {
+        $("#AMRBarIn").fadeOut('fast', function () {
           $("#AMRBar").css("text-align", "left");
-          $("#AMRBarInLtl").fadeIn(function() {
+          $("#AMRBarInLtl").fadeIn(function () {
             $(this).css("display", "inline-block");
           });
         });
@@ -244,29 +260,29 @@ function createBar(barVis) {
 
   });
 
-  div.mouseenter(function() {
+  div.mouseenter(function () {
     if (timeoutAMRbar !== 0) {
       clearTimeout(timeoutAMRbar);
     }
     if (!$("#AMRBarIn", $(this)).is(":visible")) {
       $("#AMRBarIn").data("temporary", true);
-      $("#AMRBarInLtl").fadeOut('fast', function() {
+      $("#AMRBarInLtl").fadeOut('fast', function () {
         $("#AMRBar").css("text-align", "center");
         $("#AMRBarIn").fadeIn();
       });
     }
   });
 
-  div.mouseleave(function() {
+  div.mouseleave(function () {
     if ($("#AMRBarIn").data("temporary")) {
       if (timeoutAMRbar !== 0) {
         clearTimeout(timeoutAMRbar);
       }
-      timeoutAMRbar = setTimeout(function() {
+      timeoutAMRbar = setTimeout(function () {
         $("#AMRBarIn").removeData("temporary");
-        $("#AMRBarIn").fadeOut('fast', function() {
+        $("#AMRBarIn").fadeOut('fast', function () {
           $("#AMRBar").css("text-align", "left");
-          $("#AMRBarInLtl").fadeIn(function() {
+          $("#AMRBarInLtl").fadeIn(function () {
             $(this).css("display", "inline-block");
           });
         });
@@ -285,11 +301,13 @@ function createBar(barVis) {
   imgLtl.css("cursor", "pointer");
 
   imgLtl.appendTo(divInLtl);
-  imgLtl.click(function() {
-    $("#AMRBarInLtl").fadeOut('fast', function() {
+  imgLtl.click(function () {
+    $("#AMRBarInLtl").fadeOut('fast', function () {
       $("#AMRBar").css("text-align", "center");
       $("#AMRBarIn").fadeIn();
-      chrome.runtime.sendMessage({action: "showBar"}, function(response) {});
+      chrome.runtime.sendMessage({
+        action: "showBar"
+      }, function (response) {});
     });
   });
 
@@ -336,313 +354,316 @@ function createDataDiv(res) {
   divData.data("name", res.name);
   divData.data("chapName", res.currentChapter);
 }
-function add_bookmark_button () {
-    "use strict";
-    var obj = {
-        action: "addUpdateBookmark",
-        mirror: $("#bookmarkData").data("mirror"),
-        url: $("#bookmarkData").data("url"),
-        chapUrl: $("#bookmarkData").data("chapUrl"),
-        type: $("#bookmarkData").data("type"),
-        name: $("#bookmarkData").data("name"),
-        chapName: $("#bookmarkData").data("chapName"),
-        note: $("#noteAMR").val()
-    };
-    if ($("#bookmarkData").data("type") !== "chapter") {
-        obj.scanUrl = $("#bookmarkData").data("scanUrl");
-        obj.scanName = $("#bookmarkData").data("scanName");
-        var imgScan = $(".spanForImg img[src='" + obj.scanUrl + "']");
-        imgScan.css("border-color", "#999999");
-        if ($("#noteAMR").val() !== "") {
-            imgScan.attr("title", "Note : " + $("#noteAMR").val());
-        }
-        imgScan.data("note", $("#noteAMR").val());
-        imgScan.data("booked", true);
-    } else {
-        $("#bookmarkData").data("note", $("#noteAMR").val());
-        if ($("#noteAMR").val() !== "") {
-            $(".bookAMR").attr("title", "Note : " + $("#noteAMR").val());
-        }
-        $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmarkred.png"));
-        $("#bookmarkData").data("chapbooked", true);
-    }
 
-    chrome.runtime.sendMessage(obj, function () {});
-    $.modal.close();
-}
-function delete_bookmark_button () {
-    "use strict";
-    var obj = {
-        action: "deleteBookmark",
-        mirror: $("#bookmarkData").data("mirror"),
-        url: $("#bookmarkData").data("url"),
-        chapUrl: $("#bookmarkData").data("chapUrl"),
-        type: $("#bookmarkData").data("type")
-    };
-    if ($("#bookmarkData").data("type") !== "chapter") {
-        obj.scanUrl = $("#bookmarkData").data("scanUrl");
-        var imgScan = $(".spanForImg img[src='" + obj.scanUrl + "']");
-        imgScan.css("border-color", "white");
-        imgScan.removeAttr("title");
-        imgScan.removeData("booked");
-    } else {
-        $(".bookAMR").removeAttr("title");
-        $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmark.png"));
-        $("#bookmarkData").removeData("chapbooked");
+function add_bookmark_button() {
+  "use strict";
+  var obj = {
+    action: "addUpdateBookmark",
+    mirror: $("#bookmarkData").data("mirror"),
+    url: $("#bookmarkData").data("url"),
+    chapUrl: $("#bookmarkData").data("chapUrl"),
+    type: $("#bookmarkData").data("type"),
+    name: $("#bookmarkData").data("name"),
+    chapName: $("#bookmarkData").data("chapName"),
+    note: $("#noteAMR").val()
+  };
+  if ($("#bookmarkData").data("type") !== "chapter") {
+    obj.scanUrl = $("#bookmarkData").data("scanUrl");
+    obj.scanName = $("#bookmarkData").data("scanName");
+    var imgScan = $(".spanForImg img[src='" + obj.scanUrl + "']");
+    imgScan.css("border-color", "#999999");
+    if ($("#noteAMR").val() !== "") {
+      imgScan.attr("title", "Note : " + $("#noteAMR").val());
     }
+    imgScan.data("note", $("#noteAMR").val());
+    imgScan.data("booked", true);
+  } else {
+    $("#bookmarkData").data("note", $("#noteAMR").val());
+    if ($("#noteAMR").val() !== "") {
+      $(".bookAMR").attr("title", "Note : " + $("#noteAMR").val());
+    }
+    $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmarkred.png"));
+    $("#bookmarkData").data("chapbooked", true);
+  }
 
-    chrome.runtime.sendMessage(obj, function () {});
-    $.modal.close();
+  chrome.runtime.sendMessage(obj, function () {});
+  $.modal.close();
 }
+
+function delete_bookmark_button() {
+  "use strict";
+  var obj = {
+    action: "deleteBookmark",
+    mirror: $("#bookmarkData").data("mirror"),
+    url: $("#bookmarkData").data("url"),
+    chapUrl: $("#bookmarkData").data("chapUrl"),
+    type: $("#bookmarkData").data("type")
+  };
+  if ($("#bookmarkData").data("type") !== "chapter") {
+    obj.scanUrl = $("#bookmarkData").data("scanUrl");
+    var imgScan = $(".spanForImg img[src='" + obj.scanUrl + "']");
+    imgScan.css("border-color", "white");
+    imgScan.removeAttr("title");
+    imgScan.removeData("booked");
+  } else {
+    $(".bookAMR").removeAttr("title");
+    $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmark.png"));
+    $("#bookmarkData").removeData("chapbooked");
+  }
+
+  chrome.runtime.sendMessage(obj, function () {});
+  $.modal.close();
+}
+
 function writeNavigation(where, select, res, params) {
-    "use strict";
-    var div = $("<div id='bookmarkPop' style='display:none'></div>"),
-        btn = $("<a id='saveBtnAMR' class='buttonAMR'>Save</a>");
-    $("<h3>Bookmark</h3>").appendTo(div);
-    $("<div id='descEltAMR'></div>").appendTo(div);
-    $("<table><tr><td style='vertical-align:top'><b>Note:</b></td><td><textarea id='noteAMR' cols='50' rows='5' /></td></tr></table>").appendTo(div);
+  "use strict";
+  var div = $("<div id='bookmarkPop' style='display:none'></div>"),
+    btn = $("<a id='saveBtnAMR' class='buttonAMR'>Save</a>");
+  $("<h3>Bookmark</h3>").appendTo(div);
+  $("<div id='descEltAMR'></div>").appendTo(div);
+  $("<table><tr><td style='vertical-align:top'><b>Note:</b></td><td><textarea id='noteAMR' cols='50' rows='5' /></td></tr></table>").appendTo(div);
 
-    btn.click(add_bookmark_button);
+  btn.click(add_bookmark_button);
 
-    var btndel = $("<a id='delBtnAMR' class='buttonAMR'>Delete Bookmark</a>");
-    btndel.click(delete_bookmark_button);
-    btndel.appendTo(div);
-    btn.appendTo(div);
+  var btndel = $("<a id='delBtnAMR' class='buttonAMR'>Delete Bookmark</a>");
+  btndel.click(delete_bookmark_button);
+  btndel.appendTo(div);
+  btn.appendTo(div);
 
-    var divTip = $("<div id='tipBMAMR'></div>");
-    $("<span>To bookmark a scan, right click on it and choose 'Bookmark in AMR'.</span><br /><span>To manage bookmarks, go to </span>").appendTo(divTip);
-    var aBMPage = $("<a href='#'>AMR Bookmark Page</a>");
-    aBMPage.click(function () {
-        chrome.runtime.sendMessage({
-            action: "opentab",
-            url: "/bookmarks.html"
-        }, function (resp) {});
+  var divTip = $("<div id='tipBMAMR'></div>");
+  $("<span>To bookmark a scan, right click on it and choose 'Bookmark in AMR'.</span><br /><span>To manage bookmarks, go to </span>").appendTo(divTip);
+  var aBMPage = $("<a href='#'>AMR Bookmark Page</a>");
+  aBMPage.click(function () {
+    chrome.runtime.sendMessage({
+      action: "opentab",
+      url: "/bookmarks.html"
+    }, function (resp) {});
+  });
+  aBMPage.appendTo(divTip);
+  divTip.appendTo(div);
+  div.appendTo($(document.body));
+
+  where.empty();
+  where.each(function (index) {
+    var selectIns;
+
+    selectIns = $(select).clone();
+    $(selectIns).css("float", "none");
+    $(selectIns).css("max-width", $(document).width() - 450 + "px");
+    selectIns.attr("value", $(select).children("option:selected").val());
+
+    selectIns.change(function () {
+      window.location.href = $("option:selected", $(this)).val();
     });
-    aBMPage.appendTo(divTip);
-    divTip.appendTo(div);
-    div.appendTo($(document.body));
 
-    where.empty();
-    where.each(function (index) {
-        var selectIns;
+    var prevUrl = getMirrorScript().previousChapterUrl(selectIns, document, window.location.href);
+    if (prevUrl !== null) {
+      var aprev = $("<a id='pChapBtn" + index + "' class='buttonAMR' href='" + prevUrl + "' onclick='window.location.href = this.href; window.location.reload();'>Previous</a>");
+      aprev.appendTo(this);
+    }
 
-        selectIns = $(select).clone();
-        $(selectIns).css("float", "none");
-        $(selectIns).css("max-width", $(document).width() - 450 + "px");
-        selectIns.attr("value", $(select).children("option:selected").val());
+    selectIns.appendTo(this);
 
-        selectIns.change(function () {
-            window.location.href = $("option:selected", $(this)).val();
-        });
+    var nextUrl = getMirrorScript().nextChapterUrl(selectIns, document, window.location.href);
+    if (nextUrl !== null) {
+      var anext = $("<a id='nChapBtn" + index + "' class='buttonAMR' href='" + nextUrl + "' onclick='window.location.href = this.href; window.location.reload();'>Next</a>");
+      anext.appendTo(this);
+      jQuery.data(document.body, "nexturltoload", nextUrl);
+    }
 
-        var prevUrl = getMirrorScript().previousChapterUrl(selectIns, document, window.location.href);
-        if (prevUrl !== null) {
-            var aprev = $("<a id='pChapBtn" + index + "' class='buttonAMR' href='" + prevUrl + "' onclick='window.location.href = this.href; window.location.reload();'>Previous</a>");
-            aprev.appendTo(this);
-        }
+    //Add bookmark functionality
+    var book = $("<img class='bookAMR' src='" + chrome.extension.getURL("img/bookmark.png") + "'/>");
+    book.appendTo(this);
+    book.click(function () {
+      $("#bookmarkData").data("type", "chapter");
+      $("#noteAMR").val($("#bookmarkData").data("note"));
+      if ($("#bookmarkData").data("chapbooked")) {
+        $("#delBtnAMR").show();
+      } else {
+        $("#delBtnAMR").hide();
+      }
 
-        selectIns.appendTo(this);
+      $("#bookmarkPop").modal({
+        focus: false,
+        onShow: showDialog,
+        zIndex: 10000000
+      });
 
-        var nextUrl = getMirrorScript().nextChapterUrl(selectIns, document, window.location.href);
-        if (nextUrl !== null) {
-            var anext = $("<a id='nChapBtn" + index + "' class='buttonAMR' href='" + nextUrl + "' onclick='window.location.href = this.href; window.location.reload();'>Next</a>");
-            anext.appendTo(this);
-            jQuery.data(document.body, "nexturltoload", nextUrl);
-        }
-
-        //Add bookmark functionality
-        var book = $("<img class='bookAMR' src='" + chrome.extension.getURL("img/bookmark.png") + "'/>");
-        book.appendTo(this);
-        book.click(function () {
-            $("#bookmarkData").data("type", "chapter");
-            $("#noteAMR").val($("#bookmarkData").data("note"));
-            if ($("#bookmarkData").data("chapbooked")) {
-                $("#delBtnAMR").show();
-            } else {
-                $("#delBtnAMR").hide();
-            }
-
-            $("#bookmarkPop").modal({
-                focus: false,
-                onShow: showDialog,
-                zIndex: 10000000
-            });
-
-        });
-        if (index === 0) {
-            var objBM = {
-                action: "getBookmarkNote",
-                mirror: getMirrorScript().mirrorName,
-                url: res.currentMangaURL,
-                chapUrl: res.currentChapterURL,
-                type: "chapter"
-            };
-            chrome.runtime.sendMessage(objBM, function (result) {
-                if (!result.isBooked) {
-                    $("#bookmarkData").data("note", "");
-                    $(".bookAMR").attr("title", "Click here to bookmark this chapter");
-                } else {
-                    $("#bookmarkData").data("note", result.note);
-                    if (result.note !== "") $(".bookAMR").attr("title", "Note : " + result.note);
-                    $("#bookmarkData").data("chapbooked", true);
-                    $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmarkred.png"));
-                }
-            });
-        }
-
-        //Get specific read for currentManga
-        var _self = this;
-        chrome.runtime.sendMessage({
-            action: "mangaInfos",
-            url: res.currentMangaURL
-        }, function (resp) {
-            var isRead = (resp === null ? false : (resp.read == 1));
-            var imgread = $("<img class='butamrread' src='" + chrome.extension.getURL("img/" + (!isRead ? "read_stop.png" : "read_play.png")) + "' title='" + (!isRead ? "Stop following updates for this manga" : "Follow updates for this manga") + "' />");
-            if (resp === null && params.addauto === 0) {
-                imgread.hide();
-            }
-            imgread.appendTo(_self);
-            imgread.data("mangaurl", res.currentMangaURL);
-
-            imgread.click(function () {
-                var curRead = ($(this).attr("src") == chrome.extension.getURL("img/read_play.png"));
-                var obj = {
-                    action: "markReadTop",
-                    url: $(this).data("mangaurl"),
-                    read: (curRead ? 0 : 1),
-                    updatesamemangas: true
-                };
-
-                var _but = this;
-                sendExtRequest(obj, $(this), function () {
-                    if (curRead) {
-                        $(_but).attr("src", chrome.extension.getURL("img/read_stop.png"));
-                        $(_but).attr("title", "Stop following updates for this manga");
-                    } else {
-                        $(_but).attr("src", chrome.extension.getURL("img/read_play.png"));
-                        $(_but).attr("title", "Follow updates for this manga");
-                    }
-                }, false);
-            });
-
-
-            //Get specific mode for currentManga
-            var curmode = -1;
-            if (resp !== null && resp.display) {
-                curmode = resp.display;
-            }
-            //If not use res.mode
-            if (curmode == -1) {
-                curmode = params.displayMode;
-            }
-            //mode = 1 --> images are displayed on top of one another
-            //mode = 2 --> images are displayed two by two occidental reading mode
-            //mode = 3 --> images are displayed two by two japanese reading mode
-            var imgmode = $("<img src='" + chrome.extension.getURL("img/" + ((curmode == 1) ? "ontop.png" : ((curmode == 2) ? "righttoleft.png" : "lefttoright.png"))) + "' title='" + ((curmode == 1) ? "Scans displayed on top of each other (click to switch display mode for this manga only)" : ((curmode == 2) ? "Scans displayed as a book in occidental mode (left to right) (click to switch display mode for this manga only)" : "Scans displayed as a book in japanese mode (right to left) (click to switch display mode for this manga only)")) + "' />");
-            imgmode.appendTo(_self);
-            imgmode.data("curmode", curmode);
-            imgmode.data("mangaurl", res.currentMangaURL);
-            imgmode.click(function () {
-                var md = $(this).data("curmode");
-                var mdnext = (md % 3) + 1;
-                var obj = {
-                    action: "setDisplayMode",
-                    url: $(this).data("mangaurl"),
-                    display: mdnext
-                };
-                var _butMode = this;
-                sendExtRequest(obj, $(this), function () {
-                    $(_butMode).data("curmode", mdnext);
-                    transformImagesInBook(amrWhereScans, mdnext, $(document.body).data("amrparameters"));
-                    if (mdnext == 1) {
-                        $(_butMode).attr("src", chrome.extension.getURL("img/ontop.png"));
-                        $(_butMode).attr("title", "Scans displayed on top of each other (click to switch display mode for this manga only)");
-                    } else if (mdnext == 2) {
-                        $(_butMode).attr("src", chrome.extension.getURL("img/righttoleft.png"));
-                        $(_butMode).attr("title", "Scans displayed as a book in occidental mode (left to right) (click to switch display mode for this manga only)");
-                    } else {
-                        $(_butMode).attr("src", chrome.extension.getURL("img/lefttoright.png"));
-                        $(_butMode).attr("title", "Scans displayed as a book in japanese mode (right to left) (click to switch display mode for this manga only)");
-                    }
-                }, false);
-            });
-
-            var imgstop = $("<img class='butamrstop' src='" + chrome.extension.getURL("img/stop.gif") + "' title='Mark this chapter as latest chapter read' />");
-            if (resp === null && params.addauto === 0) {
-                imgstop.hide();
-            }
-            imgstop.appendTo(_self);
-            imgstop.data("mangainfo", res);
-
-            imgstop.click(function () {
-                var ret = confirm("This action will reset your reading state for this manga and this chapter will be considered as the latest you have read. Do you confirm this action ?");
-                if (ret) {
-                    var obj = {
-                        "action": "setMangaChapter",
-                        "url": $(this).data("mangainfo").currentMangaURL,
-                        "mirror": getMirrorScript().mirrorName,
-                        "lastChapterReadName": $(this).data("mangainfo").currentChapter,
-                        "lastChapterReadURL": $(this).data("mangainfo").currentChapterURL,
-                        "name": $(this).data("mangainfo").name
-                    };
-                    sendExtRequest(obj, $(this), function () {}, true);
-                }
-            });
-
-            if (params.addauto === 0 && resp === null) {
-                var imgadd = $("<img src='" + chrome.extension.getURL("img/add.png") + "' title='Add this manga to your reading list' />");
-                imgadd.appendTo(_self);
-                imgadd.data("mangainfo", res);
-
-                imgadd.click(function () {
-                    var obj = {
-                        "action": "readManga",
-                        "url": $(this).data("mangainfo").currentMangaURL,
-                        "mirror": getMirrorScript().mirrorName,
-                        "lastChapterReadName": $(this).data("mangainfo").currentChapter,
-                        "lastChapterReadURL": $(this).data("mangainfo").currentChapterURL,
-                        "name": $(this).data("mangainfo").name
-                    };
-                    var _butadd = this;
-                    sendExtRequest(obj, $(this), function () {
-                        $(".butamrstop").show();
-                        $(".butamrread").show();
-                        $(_butadd).remove();
-                    }, true);
-                });
-            }
-
-            $(_self).addClass("amrbarlayout");
-
-            //TODO : change pub !!! (facebook + donate)...
-            if (params.pub == 1) {
-                var linkPub = $("<div class=\"titleAMRPub\"></div>");
-                var linkP2 = $("<span>You like reading your mangas this way with All Mangas Reader Extension, please donate !!&nbsp;&nbsp;</span><form action=\"https://www.paypal.com/cgi-bin/webscr\" method=\"post\" style='display:inline-block;'><input type=\"hidden\" name=\"cmd\" value=\"_s-xclick\"><input type=\"hidden\" name=\"hosted_button_id\" value=\"7GQN3EZ6KK5MU\"><input type=\"image\" src=\"https://www.paypalobjects.com/WEBSCR-640-20110429-1/en_US/i/btn/btn_donate_SM.gif\" border=\"0\" name=\"submit\" alt=\"PayPal - The safer, easier way to pay online!\"><img alt=\"\" border=\"0\" src=\"https://www.paypalobjects.com/WEBSCR-640-20110429-1/en_US/i/scr/pixel.gif\" width=\"1\" height=\"1\"></form>");
-                linkP2.css("vertical-align", "middle");
-                linkP2.css("color", "red!important");
-                /*linkP2.click(function() {
-                  chrome.runtime.sendMessage({action: "openExtensionMainPage"}, function(response) {});
-                });*/
-                linkP2.appendTo(linkPub);
-                var deletePub = $("<img src=\"" + chrome.extension.getURL("img/cancel.png") + "\" />");
-                deletePub.attr("title", "Remove this banner...");
-                deletePub.css("cursor", "pointer");
-                deletePub.css("vertical-align", "middle");
-                deletePub.css("margin-left", "10px");
-                deletePub.click(function () {
-                    chrome.runtime.sendMessage({
-                        action: "deletepub"
-                    }, function (response) {
-                        $(".titleAMRPub").remove();
-                    });
-                });
-                deletePub.appendTo(linkPub);
-                linkPub.appendTo(_self);
-            }
-            var whereNavToTrail = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
-            addTrailingLastChap($(whereNavToTrail).last());
-        });
     });
+    if (index === 0) {
+      var objBM = {
+        action: "getBookmarkNote",
+        mirror: getMirrorScript().mirrorName,
+        url: res.currentMangaURL,
+        chapUrl: res.currentChapterURL,
+        type: "chapter"
+      };
+      chrome.runtime.sendMessage(objBM, function (result) {
+        if (!result.isBooked) {
+          $("#bookmarkData").data("note", "");
+          $(".bookAMR").attr("title", "Click here to bookmark this chapter");
+        } else {
+          $("#bookmarkData").data("note", result.note);
+          if (result.note !== "") $(".bookAMR").attr("title", "Note : " + result.note);
+          $("#bookmarkData").data("chapbooked", true);
+          $(".bookAMR").attr("src", chrome.extension.getURL("img/bookmarkred.png"));
+        }
+      });
+    }
+
+    //Get specific read for currentManga
+    var _self = this;
+    chrome.runtime.sendMessage({
+      action: "mangaInfos",
+      url: res.currentMangaURL
+    }, function (resp) {
+      var isRead = (resp === null ? false : (resp.read == 1));
+      var imgread = $("<img class='butamrread' src='" + chrome.extension.getURL("img/" + (!isRead ? "read_stop.png" : "read_play.png")) + "' title='" + (!isRead ? "Stop following updates for this manga" : "Follow updates for this manga") + "' />");
+      if (resp === null && params.addauto === 0) {
+        imgread.hide();
+      }
+      imgread.appendTo(_self);
+      imgread.data("mangaurl", res.currentMangaURL);
+
+      imgread.click(function () {
+        var curRead = ($(this).attr("src") == chrome.extension.getURL("img/read_play.png"));
+        var obj = {
+          action: "markReadTop",
+          url: $(this).data("mangaurl"),
+          read: (curRead ? 0 : 1),
+          updatesamemangas: true
+        };
+
+        var _but = this;
+        sendExtRequest(obj, $(this), function () {
+          if (curRead) {
+            $(_but).attr("src", chrome.extension.getURL("img/read_stop.png"));
+            $(_but).attr("title", "Stop following updates for this manga");
+          } else {
+            $(_but).attr("src", chrome.extension.getURL("img/read_play.png"));
+            $(_but).attr("title", "Follow updates for this manga");
+          }
+        }, false);
+      });
+
+
+      //Get specific mode for currentManga
+      var curmode = -1;
+      if (resp !== null && resp.display) {
+        curmode = resp.display;
+      }
+      //If not use res.mode
+      if (curmode == -1) {
+        curmode = params.displayMode;
+      }
+      //mode = 1 --> images are displayed on top of one another
+      //mode = 2 --> images are displayed two by two occidental reading mode
+      //mode = 3 --> images are displayed two by two japanese reading mode
+      var imgmode = $("<img src='" + chrome.extension.getURL("img/" + ((curmode == 1) ? "ontop.png" : ((curmode == 2) ? "righttoleft.png" : "lefttoright.png"))) + "' title='" + ((curmode == 1) ? "Scans displayed on top of each other (click to switch display mode for this manga only)" : ((curmode == 2) ? "Scans displayed as a book in occidental mode (left to right) (click to switch display mode for this manga only)" : "Scans displayed as a book in japanese mode (right to left) (click to switch display mode for this manga only)")) + "' />");
+      imgmode.appendTo(_self);
+      imgmode.data("curmode", curmode);
+      imgmode.data("mangaurl", res.currentMangaURL);
+      imgmode.click(function () {
+        var md = $(this).data("curmode");
+        var mdnext = (md % 3) + 1;
+        var obj = {
+          action: "setDisplayMode",
+          url: $(this).data("mangaurl"),
+          display: mdnext
+        };
+        var _butMode = this;
+        sendExtRequest(obj, $(this), function () {
+          $(_butMode).data("curmode", mdnext);
+          transformImagesInBook(amrWhereScans, mdnext, $(document.body).data("amrparameters"));
+          if (mdnext == 1) {
+            $(_butMode).attr("src", chrome.extension.getURL("img/ontop.png"));
+            $(_butMode).attr("title", "Scans displayed on top of each other (click to switch display mode for this manga only)");
+          } else if (mdnext == 2) {
+            $(_butMode).attr("src", chrome.extension.getURL("img/righttoleft.png"));
+            $(_butMode).attr("title", "Scans displayed as a book in occidental mode (left to right) (click to switch display mode for this manga only)");
+          } else {
+            $(_butMode).attr("src", chrome.extension.getURL("img/lefttoright.png"));
+            $(_butMode).attr("title", "Scans displayed as a book in japanese mode (right to left) (click to switch display mode for this manga only)");
+          }
+        }, false);
+      });
+
+      var imgstop = $("<img class='butamrstop' src='" + chrome.extension.getURL("img/stop.gif") + "' title='Mark this chapter as latest chapter read' />");
+      if (resp === null && params.addauto === 0) {
+        imgstop.hide();
+      }
+      imgstop.appendTo(_self);
+      imgstop.data("mangainfo", res);
+
+      imgstop.click(function () {
+        var ret = confirm("This action will reset your reading state for this manga and this chapter will be considered as the latest you have read. Do you confirm this action ?");
+        if (ret) {
+          var obj = {
+            "action": "setMangaChapter",
+            "url": $(this).data("mangainfo").currentMangaURL,
+            "mirror": getMirrorScript().mirrorName,
+            "lastChapterReadName": $(this).data("mangainfo").currentChapter,
+            "lastChapterReadURL": $(this).data("mangainfo").currentChapterURL,
+            "name": $(this).data("mangainfo").name
+          };
+          sendExtRequest(obj, $(this), function () {}, true);
+        }
+      });
+
+      if (params.addauto === 0 && resp === null) {
+        var imgadd = $("<img src='" + chrome.extension.getURL("img/add.png") + "' title='Add this manga to your reading list' />");
+        imgadd.appendTo(_self);
+        imgadd.data("mangainfo", res);
+
+        imgadd.click(function () {
+          var obj = {
+            "action": "readManga",
+            "url": $(this).data("mangainfo").currentMangaURL,
+            "mirror": getMirrorScript().mirrorName,
+            "lastChapterReadName": $(this).data("mangainfo").currentChapter,
+            "lastChapterReadURL": $(this).data("mangainfo").currentChapterURL,
+            "name": $(this).data("mangainfo").name
+          };
+          var _butadd = this;
+          sendExtRequest(obj, $(this), function () {
+            $(".butamrstop").show();
+            $(".butamrread").show();
+            $(_butadd).remove();
+          }, true);
+        });
+      }
+
+      $(_self).addClass("amrbarlayout");
+
+      //TODO : change pub !!! (facebook + donate)...
+      if (params.pub == 1) {
+        var linkPub = $("<div class=\"titleAMRPub\"></div>");
+        var linkP2 = $("<span>You like reading your mangas this way with All Mangas Reader Extension, please donate !!&nbsp;&nbsp;</span><form action=\"https://www.paypal.com/cgi-bin/webscr\" method=\"post\" style='display:inline-block;'><input type=\"hidden\" name=\"cmd\" value=\"_s-xclick\"><input type=\"hidden\" name=\"hosted_button_id\" value=\"7GQN3EZ6KK5MU\"><input type=\"image\" src=\"https://www.paypalobjects.com/WEBSCR-640-20110429-1/en_US/i/btn/btn_donate_SM.gif\" border=\"0\" name=\"submit\" alt=\"PayPal - The safer, easier way to pay online!\"><img alt=\"\" border=\"0\" src=\"https://www.paypalobjects.com/WEBSCR-640-20110429-1/en_US/i/scr/pixel.gif\" width=\"1\" height=\"1\"></form>");
+        linkP2.css("vertical-align", "middle");
+        linkP2.css("color", "red!important");
+        /*linkP2.click(function() {
+          chrome.runtime.sendMessage({action: "openExtensionMainPage"}, function(response) {});
+        });*/
+        linkP2.appendTo(linkPub);
+        var deletePub = $("<img src=\"" + chrome.extension.getURL("img/cancel.png") + "\" />");
+        deletePub.attr("title", "Remove this banner...");
+        deletePub.css("cursor", "pointer");
+        deletePub.css("vertical-align", "middle");
+        deletePub.css("margin-left", "10px");
+        deletePub.click(function () {
+          chrome.runtime.sendMessage({
+            action: "deletepub"
+          }, function (response) {
+            $(".titleAMRPub").remove();
+          });
+        });
+        deletePub.appendTo(linkPub);
+        linkPub.appendTo(_self);
+      }
+      var whereNavToTrail = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
+      addTrailingLastChap($(whereNavToTrail).last());
+    });
+  });
 }
 
 //Used to request background page action
@@ -667,8 +688,8 @@ function sendExtRequest(request, button, callback, backsrc) {
     }
   }
   //Call the action
-  chrome.runtime.sendMessage(request, function() {
-  //setTimeout(function() {
+  chrome.runtime.sendMessage(request, function () {
+    //setTimeout(function() {
     //Do the callback
     callback();
     //Removes the loading image
@@ -683,15 +704,15 @@ function sendExtRequest(request, button, callback, backsrc) {
     }
     //Restore request
     button.removeData("currentlyClicked");
-  //}, 1000);
+    //}, 1000);
   });
 }
 
 function callbackListChaps(list, select) {
   var hasSelected = false;
   for (var j = 0; j < list.length; j++) {
-      var optTmp = $("<option value=\"" + list[j][1] + "\">" + list[j][0] + "</option>");
-    if ($(select).data("mangaCurUrl").indexOf(list[j][1]) != - 1 && !hasSelected) {
+    var optTmp = $("<option value=\"" + list[j][1] + "\">" + list[j][0] + "</option>");
+    if ($(select).data("mangaCurUrl").indexOf(list[j][1]) != -1 && !hasSelected) {
       optTmp.attr("selected", true);
       if ($(select).data("mangaCurUrl") == list[j][1]) {
         hasSelected = true;
@@ -700,17 +721,21 @@ function callbackListChaps(list, select) {
     optTmp.appendTo($(select));
   }
 
-  chrome.runtime.sendMessage({"action": "parameters"}, function(response) {
-      var whereNav;
-      if (response.newbar == 1) {
-        chrome.runtime.sendMessage({action: "barState"}, function(barState) {
-          whereNav = createBar(barState.barVis);
-          writeNavigation(whereNav, select, jQuery.data(document.body, "curpageinformations"), response);
-        });
-      } else {
-        whereNav = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
+  chrome.runtime.sendMessage({
+    "action": "parameters"
+  }, function (response) {
+    var whereNav;
+    if (response.newbar == 1) {
+      chrome.runtime.sendMessage({
+        action: "barState"
+      }, function (barState) {
+        whereNav = createBar(barState.barVis);
         writeNavigation(whereNav, select, jQuery.data(document.body, "curpageinformations"), response);
-      }
+      });
+    } else {
+      whereNav = getMirrorScript().whereDoIWriteNavigation(document, window.location.href);
+      writeNavigation(whereNav, select, jQuery.data(document.body, "curpageinformations"), response);
+    }
   });
 }
 
@@ -731,21 +756,21 @@ function onLoadImage() {
     if (resize == 1) {
       if (ancCan.width() < ancCan.height()) {
         if (mode != 1) {
-          if (ancCan.width() > (screen.width-200) / 2) {
-            width = (screen.width-200) / 2;
+          if (ancCan.width() > (screen.width - 200) / 2) {
+            width = (screen.width - 200) / 2;
           } else {
             width = ancCan.width();
           }
         } else {
-          if (ancCan.width() > (screen.width-200)) {
-            width = (screen.width-200);
+          if (ancCan.width() > (screen.width - 200)) {
+            width = (screen.width - 200);
           } else {
             width = ancCan.width();
           }
         }
       } else {
-        if (ancCan.width() > (screen.width-200)) {
-          width = (screen.width-200);
+        if (ancCan.width() > (screen.width - 200)) {
+          width = (screen.width - 200);
         } else {
           width = ancCan.width();
         }
@@ -756,7 +781,7 @@ function onLoadImage() {
     height = (width / ancCan.width()) * ancCan.height();
 
     //DIV VERSION
-    $("div", ancCan).add($("div > img", ancCan)).each(function(index) {
+    $("div", ancCan).add($("div > img", ancCan)).each(function (index) {
       //FIX CONFLICT WITH AdBlock -->
       var wori = $(this).width();
       if (wori === 0) {
@@ -778,7 +803,7 @@ function onLoadImage() {
         var l = Math.floor((width / ancCan.width()) * $(this).position().left);
         if (l !== 0) l++;
         var t = Math.floor((width / ancCan.width()) * $(this).position().top);
-        if (t!== 0) t++;
+        if (t !== 0) t++;
         $(this).css("left", l + 'px');
         $(this).css("top", t + 'px');
       }
@@ -806,8 +831,8 @@ function onLoadImage() {
     //Create contextual menu to bookmark image
     chrome.runtime.sendMessage({
       action: "createContextMenu",
-      lstUrls: [ $(this).attr("src") ]
-    }, function(resp) {});
+      lstUrls: [$(this).attr("src")]
+    }, function (resp) {});
     //Check bookmarks
     var objBM = {
       action: "getBookmarkNote",
@@ -816,8 +841,9 @@ function onLoadImage() {
       chapUrl: $("#bookmarkData").data("chapUrl"),
       type: "scan",
       scanUrl: $(this).attr("src"),
-      scanName: $(this).data("idScan")};
-    chrome.runtime.sendMessage(objBM, function(result) {
+      scanName: $(this).data("idScan")
+    };
+    chrome.runtime.sendMessage(objBM, function (result) {
       if (result.isBooked) {
         var imgScan = $(".spanForImg img[src='" + result.scanSrc + "']");
         if (imgScan.size() === 0) {
@@ -830,7 +856,7 @@ function onLoadImage() {
       }
     });
     if (autoBookmarkScans) {
-      $(this).dblclick(function() {
+      $(this).dblclick(function () {
         var obj;
         if ($(this).data("booked")) {
           obj = {
@@ -850,7 +876,7 @@ function onLoadImage() {
           $(this).removeData("booked");
           $(this).removeData("note");
 
-          chrome.runtime.sendMessage(obj, function(resp) {});
+          chrome.runtime.sendMessage(obj, function (resp) {});
         } else {
           obj = {
             action: "addUpdateBookmark",
@@ -869,7 +895,7 @@ function onLoadImage() {
           $(this).data("note", "");
           $(this).data("booked", 1);
 
-          chrome.runtime.sendMessage(obj, function(resp) {});
+          chrome.runtime.sendMessage(obj, function (resp) {});
         }
       });
     }
@@ -901,7 +927,11 @@ function clickOnBM(src) {
     $("#delBtnAMR").hide();
   }
 
-  $("#bookmarkPop").modal({focus:false, onShow: showDialog, zIndex:10000000});
+  $("#bookmarkPop").modal({
+    focus: false,
+    onShow: showDialog,
+    zIndex: 10000000
+  });
 
 }
 
@@ -911,44 +941,44 @@ function onErrorImage() {
   if (this.naturalWidth === 0) {
     //Here, number of tries before considering image can not be loaded
     if ($(this).data("number") == 2) {
-        console.log("Image has not been recovered");
-        $(this).attr("src", chrome.extension.getURL("img/imgerror.png"));
-        $(this).css("border", "0");
-        $(this).css("margin", "0");
-        $(this).data("finish", "1");
-        $("#" + $(this).data("divLoad")).css("display", "none");
+      console.log("Image has not been recovered");
+      $(this).attr("src", chrome.extension.getURL("img/imgerror.png"));
+      $(this).css("border", "0");
+      $(this).css("margin", "0");
+      $(this).data("finish", "1");
+      $("#" + $(this).data("divLoad")).css("display", "none");
 
-        //Create the reload button
-        var butReco = $("<a class='buttonAMR'>Try to reload</a>");
-        butReco.css("display", "block");
-        butReco.css("max-width", "200px");
-        butReco.css("margin-left", "auto");
-        butReco.css("margin-right", "auto");
-        $(this).after(butReco);
-        butReco.click(function() {
-          var imgAnc = $(this).prev();
-          var url = $(imgAnc).data("urlToLoad");
-          var divLoadId = $(imgAnc).data("divLoad");
-          var idScan = $(imgAnc).data("idScan");
-          var spanner = $(this).parent();
-          spanner.empty();
+      //Create the reload button
+      var butReco = $("<a class='buttonAMR'>Try to reload</a>");
+      butReco.css("display", "block");
+      butReco.css("max-width", "200px");
+      butReco.css("margin-left", "auto");
+      butReco.css("margin-right", "auto");
+      $(this).after(butReco);
+      butReco.click(function () {
+        var imgAnc = $(this).prev();
+        var url = $(imgAnc).data("urlToLoad");
+        var divLoadId = $(imgAnc).data("divLoad");
+        var idScan = $(imgAnc).data("idScan");
+        var spanner = $(this).parent();
+        spanner.empty();
 
-          var img = new Image();
-          //== loadImage
-          $(img).data("urlToLoad", url);
-          $(img).css("border", "5px solid white");
-          $(img).load(onLoadImage);
-          $(img).error(onErrorImage);
-          getMirrorScript().getImageFromPageAndWrite(url, img, document, window.location.href);
+        var img = new Image();
+        //== loadImage
+        $(img).data("urlToLoad", url);
+        $(img).css("border", "5px solid white");
+        $(img).load(onLoadImage);
+        $(img).error(onErrorImage);
+        getMirrorScript().getImageFromPageAndWrite(url, img, document, window.location.href);
 
-          $(img).appendTo(spanner);
+        $(img).appendTo(spanner);
 
-          var div = $("<div id='" + divLoadId + "' class='divLoading'></div>");
-          div.css("background", "url(" + chrome.extension.getURL("img/loading.gif") + ") no-repeat center center");
-          $(img).data("divLoad", divLoadId);
-          $(img).data("idScan", idScan);
-          div.appendTo(spanner);
-        });
+        var div = $("<div id='" + divLoadId + "' class='divLoading'></div>");
+        div.css("background", "url(" + chrome.extension.getURL("img/loading.gif") + ") no-repeat center center");
+        $(img).data("divLoad", divLoadId);
+        $(img).data("idScan", idScan);
+        div.appendTo(spanner);
+      });
 
     } else {
       //console.log("An image has encountered a problem while loading... All Mangas Reader is trying to recover it...");
@@ -997,7 +1027,7 @@ function loadImageAMR(where, url, img, pos, res, mode, second) {
     if (nbLoaded(where) == pos) {
       getMirrorScript().getImageFromPageAndWrite(url, img, document, window.location.href);
     } else {
-      setTimeout(function() {
+      setTimeout(function () {
         loadImageAMR(where, url, img, pos, res, mode, true);
       }, 100);
     }
@@ -1007,13 +1037,13 @@ function loadImageAMR(where, url, img, pos, res, mode, second) {
 }
 
 function writeImages(where, list, mode, res) {
-   var table = $("<table class='AMRtable'></table>");
-   table.css("text-align", "center");
-   table.css("position", "static");
-   table.css("width", "100%");
-   table.appendTo(where);
+  var table = $("<table class='AMRtable'></table>");
+  table.css("text-align", "center");
+  table.css("position", "static");
+  table.css("width", "100%");
+  table.appendTo(where);
 
-   for (var i = 0; i < list.length; i++) {
+  for (var i = 0; i < list.length; i++) {
     var tr = $("<tr></tr>");
     tr.appendTo(table);
     var td = $("<td></td>");
@@ -1029,7 +1059,7 @@ function writeImages(where, list, mode, res) {
     var div = $("<div id='loader" + i + "' class='divLoading'></div>");
     div.css("background", "url(" + chrome.extension.getURL("img/loading.gif") + ") no-repeat center center");
     div.appendTo(spanner);
-    
+
     // Using jQuery to create this image instead of DOM native method fix a
     //weird bug on canary and only some websites.
     //My thought is that a version of canary was mistaking the embedded jQuery
@@ -1044,10 +1074,10 @@ function writeImages(where, list, mode, res) {
     $(img).data("idScan", i);
     loadImageAMR(where, list[i], img, i, res, mode);
     $(img).appendTo(spanner);
-   }
+  }
 
-   var title = $("title").text();
-   waitForImages(where, mode, res, title);
+  var title = $("title").text();
+  waitForImages(where, mode, res, title);
 }
 
 function nbLoaded(where) {
@@ -1060,7 +1090,7 @@ function nbLoaded(where) {
   return nbOk;
 }
 
-function waitForImages(where, mode, res, title){
+function waitForImages(where, mode, res, title) {
   isOk = true;
   var nbOk = 0;
   var nbTot = 0;
@@ -1090,12 +1120,11 @@ function waitForImages(where, mode, res, title){
     }
 
     if (jQuery.data(document.body, "sendwhendownloaded")) {
-      chrome.runtime.sendMessage(jQuery.data(document.body, "sendwhendownloaded"), function(response) {
-      });
+      chrome.runtime.sendMessage(jQuery.data(document.body, "sendwhendownloaded"), function (response) {});
     }
 
   } else {
-    setTimeout(function() {
+    setTimeout(function () {
       waitForImages(where, mode, res, title);
     }, 500);
   }
@@ -1115,29 +1144,29 @@ function isLandscape(img) {
   }
 }
 
-function transformImagesInBook(where, mode, res){
-   //mode = 1 --> images are displayed on top of one another
-   //mode = 2 --> images are displayed two by two occidental reading mode
-   //mode = 3 --> images are displayed two by two japanese reading mode
+function transformImagesInBook(where, mode, res) {
+  //mode = 1 --> images are displayed on top of one another
+  //mode = 2 --> images are displayed two by two occidental reading mode
+  //mode = 3 --> images are displayed two by two japanese reading mode
 
-   var nbSinglePages = 0;
-   var posImg = [];
-   var isFirstDouble = true;
-   var isEven = true;
-   //console.log("Transformation book : Nombre d'images" + $(".imageAMR", where).size());
-   $(".imageAMR", where).sort(function(a, b) {
-      var nba = $(a).closest(".spanForImg").data("order");
-      var nbb = $(b).closest(".spanForImg").data("order");
-      return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
-   }).each(function (index) {
+  var nbSinglePages = 0;
+  var posImg = [];
+  var isFirstDouble = true;
+  var isEven = true;
+  //console.log("Transformation book : Nombre d'images" + $(".imageAMR", where).size());
+  $(".imageAMR", where).sort(function (a, b) {
+    var nba = $(a).closest(".spanForImg").data("order");
+    var nbb = $(b).closest(".spanForImg").data("order");
+    return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
+  }).each(function (index) {
     //console.log("setting image position...");
     if (isLandscape(this) || getMirrorScript().isImageInOneCol(this, document, window.location.href)) {
       posImg[index] = 2;
       if (isLandscape(this) && isFirstDouble) {
-        if (index !== 0 && posImg[index-1] != 1) {
+        if (index !== 0 && posImg[index - 1] != 1) {
           for (var i = 0; i < posImg.length; i++) {
             if (posImg[i] != 2) {
-              posImg[i] = (posImg[i]+1) % 2;
+              posImg[i] = (posImg[i] + 1) % 2;
             }
           }
         }
@@ -1152,133 +1181,137 @@ function transformImagesInBook(where, mode, res){
         isEven = !isEven;
       }
     }
-   });
+  });
 
-   var parity = nbSinglePages % 2;
+  var parity = nbSinglePages % 2;
 
-   $(where).css("text-align", "center");
-   var evenImg = null;
-   var tableRes = $("<table class='AMRtable'></table>");
-   tableRes.css("width", "100%");
-   tableRes.css("position", "static");
+  $(where).css("text-align", "center");
+  var evenImg = null;
+  var tableRes = $("<table class='AMRtable'></table>");
+  tableRes.css("width", "100%");
+  tableRes.css("position", "static");
 
-   $(".spanForImg", where).sort(function(a, b) {
+  $(".spanForImg", where).sort(function (a, b) {
     var nba = $(a).data("order");
     var nbb = $(b).data("order");
-      return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
-   }).each(function (index) {
-     var divMode = ($("div > img", this).data("canvasId"));
-     //if (divMode) console.log("DIV MODE");
-     //if (!divMode) console.log("NOT DIV MODE");
+    return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
+  }).each(function (index) {
+    var divMode = ($("div > img", this).data("canvasId"));
+    //if (divMode) console.log("DIV MODE");
+    //if (!divMode) console.log("NOT DIV MODE");
 
-      //console.log("displaying image position...");
-      var td = $("<td></td>");
+    //console.log("displaying image position...");
+    var td = $("<td></td>");
 
-      if (!divMode) {
-        //$("img:first-child", this).css("margin-right", "10px");
-        if ($("img:first-child", this).attr("src") != chrome.extension.getURL("img/imgerror.png")) {
-          $("img:first-child", this).css("margin-bottom", "50px");
-          //$("img:first-child", this).css("border", "10px solid white");
-          td.css("vertical-align", "middle");
+    if (!divMode) {
+      //$("img:first-child", this).css("margin-right", "10px");
+      if ($("img:first-child", this).attr("src") != chrome.extension.getURL("img/imgerror.png")) {
+        $("img:first-child", this).css("margin-bottom", "50px");
+        //$("img:first-child", this).css("border", "10px solid white");
+        td.css("vertical-align", "middle");
+      }
+    }
+    $(this).appendTo(td);
+
+    //console.log("Displaying " + $("img:first-child", this).data("urlToLoad") + " in the table");
+    var trTmp;
+    if (posImg[index] == 2 || mode == 1) {
+      if (evenImg !== null) {
+        var trForEven = $("<tr></tr>");
+        trForEven.appendTo(tableRes);
+        evenImg.appendTo(trForEven);
+        evenImg.attr("colspan", "2");
+        evenImg = null;
+        if (res.resize == 1) {
+          if (!divMode) $("img", trForEven).css("max-width", (screen.width - 200) + 'px');
         }
       }
-      $(this).appendTo(td);
-
-      //console.log("Displaying " + $("img:first-child", this).data("urlToLoad") + " in the table");
-      var trTmp;
-      if (posImg[index] == 2 || mode == 1) {
-        if (evenImg !== null) {
-          var trForEven = $("<tr></tr>");
-          trForEven.appendTo(tableRes);
-          evenImg.appendTo(trForEven);
-          evenImg.attr("colspan", "2");
-          evenImg = null;
-          if (res.resize == 1) {
-            if (!divMode) $("img", trForEven).css("max-width", (screen.width-200) + 'px');
-          }
-        }
+      trTmp = $("<tr></tr>");
+      trTmp.appendTo(tableRes);
+      td.attr("colspan", "2");
+      td.appendTo(trTmp);
+      if (res.resize == 1) {
+        if (!divMode) $("img", trTmp).css("max-width", (screen.width - 200) + 'px');
+      }
+    } else {
+      if (evenImg !== null) {
         trTmp = $("<tr></tr>");
         trTmp.appendTo(tableRes);
-        td.attr("colspan", "2");
-        td.appendTo(trTmp);
-        if (res.resize == 1) {
-          if (!divMode) $("img", trTmp).css("max-width", (screen.width-200) + 'px');
+        if (mode == 2) {
+          evenImg.appendTo(trTmp);
+          evenImg.css("text-align", "right");
+          td.appendTo(trTmp);
+          td.css("text-align", "left");
+        } else {
+          td.appendTo(trTmp);
+          td.css("text-align", "right");
+          evenImg.appendTo(trTmp);
+          evenImg.css("text-align", "left");
         }
+        if (res.resize == 1) {
+          if (!divMode) $("img", trTmp).css("max-width", ((screen.width - 200) / 2) + 'px');
+        }
+        evenImg = null;
       } else {
-        if (evenImg !== null) {
+        if (posImg[index] === 0) {
+          evenImg = td;
+        } else {
           trTmp = $("<tr></tr>");
           trTmp.appendTo(tableRes);
-          if (mode == 2) {
-            evenImg.appendTo(trTmp);
-            evenImg.css("text-align", "right");
-            td.appendTo(trTmp);
-            td.css("text-align", "left");
-          } else {
-            td.appendTo(trTmp);
-            td.css("text-align", "right");
-            evenImg.appendTo(trTmp);
-            evenImg.css("text-align", "left");
-          }
+          td.attr("colspan", "2");
+          td.appendTo(trTmp);
           if (res.resize == 1) {
-            if (!divMode) $("img", trTmp).css("max-width", ((screen.width-200) / 2) + 'px');
-          }
-          evenImg = null;
-        } else {
-          if (posImg[index] === 0) {
-            evenImg = td;
-          } else {
-            trTmp = $("<tr></tr>");
-            trTmp.appendTo(tableRes);
-            td.attr("colspan", "2");
-            td.appendTo(trTmp);
-            if (res.resize == 1) {
-              if (!divMode) $("img", trTmp).css("max-width", ((screen.width-200) / 2) + 'px');
-            }
+            if (!divMode) $("img", trTmp).css("max-width", ((screen.width - 200) / 2) + 'px');
           }
         }
-
       }
-   });
 
-   var divMode = ($("img:first-child", this).data("canvasId"));
+    }
+  });
 
-   if (!divMode) {
+  var divMode = ($("img:first-child", this).data("canvasId"));
+
+  if (!divMode) {
     var td = $("<td></td>");
     $("img:first-child", this).css("margin-bottom", "50px");
     $("img:first-child", this).css("margin-right", "10px");
     //$("img:first-child", this).css("border", "10px solid white");
     $("img:first-child", this).appendTo(td);
-   }
-    if (evenImg !== null) {
-      var trTmp = $("<tr></tr>");
-      trTmp.appendTo(tableRes);
-      if (mode == 2) {
-        evenImg.appendTo(trTmp);
-        evenImg.css("text-align", "right");
-        td.appendTo(trTmp);
-        td.css("text-align", "left");
-      } else {
-        td.appendTo(trTmp);
-        td.css("text-align", "right");
-        evenImg.appendTo(trTmp);
-        evenImg.css("text-align", "left");
-      }
-      if (res.resize == 1) {
-        if (!divMode) $("img", trTmp).css("max-width", ((screen.width-200) / 2) + 'px');
-      }
-      evenImg = null;
+  }
+  if (evenImg !== null) {
+    var trTmp = $("<tr></tr>");
+    trTmp.appendTo(tableRes);
+    if (mode == 2) {
+      evenImg.appendTo(trTmp);
+      evenImg.css("text-align", "right");
+      td.appendTo(trTmp);
+      td.css("text-align", "left");
+    } else {
+      td.appendTo(trTmp);
+      td.css("text-align", "right");
+      evenImg.appendTo(trTmp);
+      evenImg.css("text-align", "left");
     }
+    if (res.resize == 1) {
+      if (!divMode) $("img", trTmp).css("max-width", ((screen.width - 200) / 2) + 'px');
+    }
+    evenImg = null;
+  }
 
-    $("table", where).remove();
-    tableRes.appendTo(where);
+  $("table", where).remove();
+  tableRes.appendTo(where);
 }
 
 function loadNextChapter(urlNext) {
   // load an iframe with urlNext and get list of images
-  chrome.runtime.sendMessage({action: "getNextChapterImages", url: urlNext, mirrorName: getMirrorScript().mirrorName}, function(resp) {
-     var lst = resp.images;
-     if (lst !== null) {
-       for (var i = 0; i < lst.length; i++) {
+  chrome.runtime.sendMessage({
+    action: "getNextChapterImages",
+    url: urlNext,
+    mirrorName: getMirrorScript().mirrorName
+  }, function (resp) {
+    var lst = resp.images;
+    if (lst !== null) {
+      for (var i = 0; i < lst.length; i++) {
         var img = new Image();
         $(img).data("attempts", 0);
         $(img).data("id", i);
@@ -1288,8 +1321,8 @@ function loadNextChapter(urlNext) {
         $(img).load(onLoadNextImage);
         $(img).error(onErrorNextImage);
         getMirrorScript().getImageFromPageAndWrite(lst[i], img, document, urlNext);
-       }
-     }
+      }
+    }
   });
 }
 
@@ -1302,7 +1335,7 @@ function onLoadNextImage() {
     i++;
   }
   var _self = this;
-  $.each(lstbtn, function(index) {
+  $.each(lstbtn, function (index) {
     if ($(this).data("nbloaded")) {
       $(this).data("nbloaded", $(this).data("nbloaded") + 1);
     } else {
@@ -1352,9 +1385,9 @@ function getTopPlus() {
   return ret;
 }
 
-function zoomin(){
+function zoomin() {
   var ancheight = document.body.offsetHeight - getTopPlus();
-  $(".imageAMR").each(function(index) {
+  $(".imageAMR").each(function (index) {
     if ($(this).data("zoom")) {
       $(this).data("zoom", $(this).data("zoom") * 1.2);
     } else {
@@ -1367,13 +1400,15 @@ function zoomin(){
   var newheight = document.body.offsetHeight - getTopPlus();
   var ratioY = (newheight / ancheight);
 
-  $.scrollTo('50%',{axis:'x'});
+  $.scrollTo('50%', {
+    axis: 'x'
+  });
   window.scrollBy(0, window.scrollY * (ratioY - 1));
 }
 
-function zoomout(){
+function zoomout() {
   var ancheight = document.body.offsetHeight - getTopPlus();
-  $(".imageAMR").each(function(index) {
+  $(".imageAMR").each(function (index) {
     if ($(this).data("zoom")) {
       $(this).data("zoom", $(this).data("zoom") * 0.833);
     } else {
@@ -1386,16 +1421,18 @@ function zoomout(){
   var newheight = document.body.offsetHeight - getTopPlus();
   var ratioY = (newheight / ancheight);
 
-  $.scrollTo('50%',{axis:'x'});
+  $.scrollTo('50%', {
+    axis: 'x'
+  });
   window.scrollBy(0, window.scrollY * (ratioY - 1));
 }
 
-function zoomrest(){
-  $(".imageAMR").each(function(index) {
-    if(this.style.zoom !== 0)
-        this.style.zoom *= 0;
-      else
-        this.style.zoom = 0;
+function zoomrest() {
+  $(".imageAMR").each(function (index) {
+    if (this.style.zoom !== 0)
+      this.style.zoom *= 0;
+    else
+      this.style.zoom = 0;
   });
 }
 
@@ -1405,9 +1442,9 @@ function stopEventProp(e) {
 
 function setKeys() {
   //disable default websites shortcuts (mangafox)
-  document.onkeypress=null;
-  document.onkeydown=null;
-  document.onkeyup=null;
+  document.onkeypress = null;
+  document.onkeydown = null;
+  document.onkeyup = null;
   $(document).unbind('keyup');
   $(document).unbind('keydown');
   $(document).unbind('keypress');
@@ -1418,7 +1455,7 @@ function setKeys() {
   //$(document).delegate('*', 'keydown', stopEventProp);
   //$(document).delegate('*', 'keypress', stopEventProp);
 
-  $(document).keydown(function(e){
+  $(document).keydown(function (e) {
     var t = getTarget(e);
     if (!((t.type && t.type == "text") || t.nodeName.toLowerCase() == "textarea")) {
       if (e.which == 87) { //W
@@ -1431,15 +1468,15 @@ function setKeys() {
         zoomin();
       }
       if (e.which == 109 || e.which == 189) { //-
-         zoomout();
+        zoomout();
       }
       if (e.which == 66) { //b
-        if ($("#pChapBtn0").size()>0) {
+        if ($("#pChapBtn0").size() > 0) {
           window.location.href = $("#pChapBtn0").attr("href");
         }
       }
       if (e.which == 78) { //n
-        if ($("#nChapBtn0").size()>0) {
+        if ($("#nChapBtn0").size() > 0) {
           window.location.href = $("#nChapBtn0").attr("href");
         }
       }
@@ -1454,7 +1491,7 @@ function setKeys() {
           if (lastpresstime !== undefined && new Date().getTime() - lastpresstime < 500 && dirpress !== undefined && dirpress == 1) {
             doubleTap = true;
           }
-          dirpress=1;
+          dirpress = 1;
           lastpresstime = new Date().getTime();
           //Get first visible image
           curimg = whichImageIsFirst(true);
@@ -1464,18 +1501,27 @@ function setKeys() {
             //If top not visible
             if (!viss.topVis && !doubleTap) {
               //Move to top of current scan
-              $.scrollTo($(curimg).closest("tr")[0], 800, {queue:true});
+              $.scrollTo($(curimg).closest("tr")[0], 800, {
+                queue: true
+              });
             } else {
               //Calculate previous scan id
               nb = curimg.data("order") - 1;
               if (nb == -1) {
                 //Current scan was first scan, move to top
-                $.scrollTo($(document.body), 800, {queue:true});
+                $.scrollTo($(document.body), 800, {
+                  queue: true
+                });
               } else {
                 //Move to bottom of previous scan
-                $(".spanForImg").each(function(index) {
+                $(".spanForImg").each(function (index) {
                   if ($(this).data("order") == nb) {
-                    $.scrollTo($(this).closest("tr")[0], 800, {queue:true, offset: {top: scrollbotoffset($(this).closest("tr")[0])}});
+                    $.scrollTo($(this).closest("tr")[0], 800, {
+                      queue: true,
+                      offset: {
+                        top: scrollbotoffset($(this).closest("tr")[0])
+                      }
+                    });
                   }
                 });
               }
@@ -1491,19 +1537,21 @@ function setKeys() {
             doubleTap = true;
           }
           lastpresstime = new Date().getTime();
-          dirpress=2;
+          dirpress = 2;
           //If we are at top of the page --> move to first scan
           if (window.pageYOffset === 0) {
             nb = 0;
-            $(".spanForImg").each(function(index) {
+            $(".spanForImg").each(function (index) {
               if ($(this).data("order") == nb) {
-                $.scrollTo($(this).closest("tr")[0], 800, {queue:true});
+                $.scrollTo($(this).closest("tr")[0], 800, {
+                  queue: true
+                });
               }
             });
           } else {
             if (window.pageYOffset >= document.documentElement.scrollHeight - window.innerHeight) {
               if (nextRight) {
-                if ($("#nChapBtn0").size()>0) {
+                if ($("#nChapBtn0").size() > 0) {
                   window.location.href = $("#nChapBtn0").attr("href");
                 }
               }
@@ -1516,18 +1564,30 @@ function setKeys() {
               //If bottom not visible
               if (!viss.bottomVis && !doubleTap) {
                 //Move to bottom of current scan
-                $.scrollTo($(curimg).closest("tr")[0], 800, {queue:true, offset: {top: scrollbotoffset($(curimg).closest("tr")[0])}});
+                $.scrollTo($(curimg).closest("tr")[0], 800, {
+                  queue: true,
+                  offset: {
+                    top: scrollbotoffset($(curimg).closest("tr")[0])
+                  }
+                });
               } else {
                 //Calculate next scan id
                 nb = curimg.data("order") + 1;
                 if (nb >= $(".spanForImg").size()) {
                   //Current scan was last scan -> move to bottom of page
-                  $.scrollTo($(document.body), 800, {queue:true, offset: {top: document.body.offsetHeight}});
+                  $.scrollTo($(document.body), 800, {
+                    queue: true,
+                    offset: {
+                      top: document.body.offsetHeight
+                    }
+                  });
                 } else {
                   // Move to top of next scan
-                  $(".spanForImg").each(function(index) {
+                  $(".spanForImg").each(function (index) {
                     if ($(this).data("order") == nb) {
-                      $.scrollTo($(this).closest("tr")[0], 800, {queue:true});
+                      $.scrollTo($(this).closest("tr")[0], 800, {
+                        queue: true
+                      });
                     }
                   });
                 }
@@ -1547,39 +1607,39 @@ function setKeys() {
     //e.preventDefault();
   });
 
-  var timer = window.setInterval(function() {
-            if (/loaded|complete/.test(document.readyState)){
-                window.clearInterval(timer);
-                enableContextMenu();
-            }
-          }, 100);
+  var timer = window.setInterval(function () {
+    if (/loaded|complete/.test(document.readyState)) {
+      window.clearInterval(timer);
+      enableContextMenu();
+    }
+  }, 100);
 }
 
 function enableContextMenu() {
-  void(document.ondragstart=null);
-  void(document.onselectstart=null);
-  void(document.onclick=null);
-  void(document.onmousedown=null);
-  void(document.onmouseup=null);
-  void(document.oncontextmenu=null);
-  void(document.body.oncontextmenu=null);
+  void(document.ondragstart = null);
+  void(document.onselectstart = null);
+  void(document.onclick = null);
+  void(document.onmousedown = null);
+  void(document.onmouseup = null);
+  void(document.oncontextmenu = null);
+  void(document.body.oncontextmenu = null);
   removeContextOn("img");
   removeContextOn("td");
 }
 
 function removeContextOn(elt) {
-  var elements=document.getElementsByTagName(elt);
+  var elements = document.getElementsByTagName(elt);
   //for (var e in elements) {
-  for (var i=0;i<elements.length;i++) {
-    e=elements[i];
-    void(e.oncontextmenu=null);
+  for (var i = 0; i < elements.length; i++) {
+    e = elements[i];
+    void(e.oncontextmenu = null);
   }
 }
 
 function topbotVis(spanFimg) {
   var isTopVisible = true;
   var isBotVisible = true;
-  var fTop = $("img:visible", $(spanFimg)).sort(function(a, b) {
+  var fTop = $("img:visible", $(spanFimg)).sort(function (a, b) {
     var aTop = a.offsetTop + a.offsetParent.offsetTop;
     var bTop = b.offsetTop + b.offsetParent.offsetTop;
     //console.log("Top : a : " + aTop + " ; b : " + bTop + " --> " + ((aTop < bTop) ? -1 : ((aTop == bTop) ? 0 : 1)));
@@ -1589,7 +1649,7 @@ function topbotVis(spanFimg) {
   if (!topVisible(fTop[0])) {
     isTopVisible = false;
   }
-  var lBot = $("img:visible", $(spanFimg)).sort(function(a, b) {
+  var lBot = $("img:visible", $(spanFimg)).sort(function (a, b) {
     var aBot = a.offsetTop + a.offsetHeight + a.offsetParent.offsetTop + a.offsetParent.offsetHeight;
     var bBot = b.offsetTop + b.offsetHeight + b.offsetParent.offsetTop + b.offsetParent.offsetHeight;
     //console.log("Bottom : a : " + aBot + " ; b : " + bBot + " --> " + ((aBot < bBot) ? -1 : ((aBot == bBot) ? 0 : 1)));
@@ -1600,7 +1660,10 @@ function topbotVis(spanFimg) {
     isBotVisible = false;
   }
   //console.log({bottomVis: isBotVisible, topVis: isTopVisible});
-  return {bottomVis: isBotVisible, topVis: isTopVisible};
+  return {
+    bottomVis: isBotVisible,
+    topVis: isTopVisible
+  };
 }
 
 function getTarget(e) {
@@ -1610,9 +1673,9 @@ function getTarget(e) {
 
 function whichImageIsFirst(needFirst) {
   var resp = null;
-  $(".AMRtable tr").each(function(index) {
+  $(".AMRtable tr").each(function (index) {
     var isVisible = false;
-    $(".spanForImg img", $(this)).each(function(index) {
+    $(".spanForImg img", $(this)).each(function (index) {
       if (elementInViewport2(this)) {
         isVisible = true;
       }
@@ -1621,18 +1684,18 @@ function whichImageIsFirst(needFirst) {
     if (isVisible) {
       if (!needFirst && resp === null) {
         //Return the last scan of the first visible tr
-        resp = $(".spanForImg", $(this)).sort(function(a, b) {
+        resp = $(".spanForImg", $(this)).sort(function (a, b) {
           var nba = $(a).data("order");
           var nbb = $(b).data("order");
           return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
-         }).last();
+        }).last();
       } else if (needFirst) {
         //return the first scan of the last visible tr
-        resp = $(".spanForImg", $(this)).sort(function(a, b) {
+        resp = $(".spanForImg", $(this)).sort(function (a, b) {
           var nba = $(a).data("order");
           var nbb = $(b).data("order");
           return ((nba < nbb) ? -1 : ((nba == nbb) ? 0 : 1));
-         }).first();
+        }).first();
       }
     }
   });
@@ -1650,7 +1713,7 @@ function elementInViewport2(el) {
   var width = el.offsetWidth;
   var height = el.offsetHeight;
 
-  while(el.offsetParent) {
+  while (el.offsetParent) {
     el = el.offsetParent;
     top += el.offsetTop;
     left += el.offsetLeft;
@@ -1671,7 +1734,7 @@ function bottomVisible(el) {
   var top = el.offsetTop;
   var height = el.offsetHeight;
 
-  while(el.offsetParent) {
+  while (el.offsetParent) {
     el = el.offsetParent;
     top += el.offsetTop;
   }
@@ -1686,7 +1749,7 @@ function topVisible(el) {
   var top = el.offsetTop;
   var height = el.offsetHeight;
 
-  while(el.offsetParent) {
+  while (el.offsetParent) {
     el = el.offsetParent;
     top += el.offsetTop;
   }

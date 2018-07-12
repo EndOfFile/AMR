@@ -24,9 +24,9 @@
 // var amrc_root              = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
 // var amrc_repository_backup = "https://raw.githubusercontent.com/EndOfFile/mirrors/master/";
 
-var amrc_repository        = "https://rawgit.com/EndOfFile/mirrors/master/";
-var amrc_root              = "https://rawgit.com/EndOfFile/mirrors/master/";
-var amrc_repository_backup = "https://rawgit.com/EndOfFile/mirrors/master/";
+var amrc_repository = "https://rawgit.com/EndOfFile/mirrors/master/";
+var amrc_root = "https://rawgit.com/EndOfFile/mirrors/master/";
+var amrc_repository_backup = "https:/rawgit.com/EndOfFile/mirrors/master/";
 
 /*** LOCAL LOADING ***/
 //To enable local loading, you must add "'unsafe-eval'" to "content_security_policy" in the manifest.json. This is not enabled by default due to security reasons.
@@ -67,9 +67,9 @@ function getMirrorsDescription(callback) {
           });
           break;
         }
-        if($.inArray(websites[i].objectName, localMirrors) !== -1) {
+        if ($.inArray(websites[i].objectName, localMirrors) !== -1) {
           websites[i].jsCode = chrome.extension.getURL('js/mirrors/' + websites[i].objectName + '.js');
-          console.log('Injected local js: '+'js/mirrors/' + websites[i].objectName + '.js');
+          console.log('Injected local js: ' + 'js/mirrors/' + websites[i].objectName + '.js');
         }
       }
       if (!mustUpdate) {
@@ -79,18 +79,18 @@ function getMirrorsDescription(callback) {
       // First load of websites
       console.log("Loading websites JS from: " + amrc_repository + "websites.json")
       $.ajax({
-        url : amrc_repository + "websites.json",
-        success : function (resp) {
+        url: amrc_repository + "websites.json",
+        success: function (resp) {
           var ws = resp,
             i;
-            //var ws = JSON && JSON.parse(json) || $.parseJSON(json);
+          //var ws = JSON && JSON.parse(json) || $.parseJSON(json);
           for (i = 0; i < ws.length; i += 1) {
             console.log("Load JS from repository for " + ws[i].mirrorName);
             loadJSFromRepository(ws[i]);
           }
           waitForFinishRepository(ws, callback);
         },
-        error : function () {
+        error: function () {
           callback([]);
         }
       });
@@ -137,20 +137,20 @@ function waitForFinishRepository(websites, callback) {
 function updateWebsitesFromRepository(callback) {
   "use strict";
   $.ajax({
-     type: 'GET',
-     url: amrc_repository + "websites.json",
-     error: function(xhr, status, error) {
-        amrc_repository = amrc_repository_backup;
-     },
+    type: 'GET',
+    url: amrc_repository + "websites.json",
+    error: function (xhr, status, error) {
+      amrc_repository = amrc_repository_backup;
+    },
   });
 
   $.ajax({
-    url : amrc_repository + "websites.json?1",
-    beforeSend : function (xhr) {
+    url: amrc_repository + "websites.json?1",
+    beforeSend: function (xhr) {
       xhr.setRequestHeader("Cache-Control", "no-cache");
       xhr.setRequestHeader("Pragma", "no-cache");
     },
-    success : function (resp) {
+    success: function (resp) {
       //distant descriptions
       var wsdist = resp;
       //local description
@@ -170,8 +170,8 @@ function updateWebsitesFromRepository(callback) {
                   // object correspond to old description (js code in database... switch to manifest 2)
                   console.log("Website " + wsdist[i].mirrorName + " has an old description... swintch to new one...");
                   var change = {
-                    description : wsdist[i],
-                    type : "update"
+                    description: wsdist[i],
+                    type: "update"
                   };
                   change.nonotif = true;
                   updateJSFromRepository(wsdist[i], change);
@@ -181,8 +181,8 @@ function updateWebsitesFromRepository(callback) {
                     // Website has been updated...
                     console.log("Website has been updated " + wsdist[i].mirrorName);
                     var change = {
-                      description : wsdist[i],
-                      type : "update"
+                      description: wsdist[i],
+                      type: "update"
                     };
                     updateJSFromRepository(wsdist[i], change);
                     changes[changes.length] = change;
@@ -199,8 +199,8 @@ function updateWebsitesFromRepository(callback) {
               // Website is new...
               console.log("Website has been created " + wsdist[i].mirrorName);
               var change = {
-                description : wsdist[i],
-                type : "create"
+                description: wsdist[i],
+                type: "create"
               };
               updateJSFromRepository(wsdist[i], change);
               changes[changes.length] = change;
@@ -223,7 +223,7 @@ function updateWebsitesFromRepository(callback) {
         }
       });
     },
-    error : function () {
+    error: function () {
       console.log("Error while updating websites repository. --> Repository not reachable...");
       callback();
     }
@@ -250,11 +250,11 @@ function updateJSFromRepository(description, change) {
   var params = getParameters();
   if (params.shownotifws === 1 && (change.nonotif === undefined || !change.nonotif)) {
     var wsData = {
-      ws : description.mirrorName,
-      developer : description.developer,
-      revision : description.revision,
-      idext : description.id,
-      isnew : isNew
+      ws: description.mirrorName,
+      developer: description.developer,
+      revision: description.revision,
+      idext: description.id,
+      isnew: isNew
     };
     displayNotification(wsData, params);
   }
@@ -288,12 +288,12 @@ function waitForFinishUpdatingRepository(changes, callback) {
 function importImplentationFromId(id, callback) {
   "use strict";
   $.ajax({
-    url : amrc_root + "service.php?name=implementation_get_v2&id=" + id,
-    beforeSend : function (xhr) {
+    url: amrc_root + "service.php?name=implementation_get_v2&id=" + id,
+    beforeSend: function (xhr) {
       xhr.setRequestHeader("Cache-Control", "no-cache");
       xhr.setRequestHeader("Pragma", "no-cache");
     },
-    success : function (resp) {
+    success: function (resp) {
       //distant description
       var description = JSON.parse(resp);
 
@@ -333,7 +333,7 @@ function importImplentationFromId(id, callback) {
         }
       });
     },
-    error : function () {
+    error: function () {
       console.log("Error while importing an implementation from repository. --> Repository not reachable...");
       callback();
     }
@@ -346,11 +346,11 @@ function finishImportAfterInsert(description, callback, isNew) {
   var params = getParameters();
   if (params.shownotifws === 1) {
     var wsData = {
-      ws : description.mirrorName,
-      developer : description.developer,
-      revision : description.revision,
-      idext : description.id,
-      isnew : isNew
+      ws: description.mirrorName,
+      developer: description.developer,
+      revision: description.revision,
+      idext: description.id,
+      isnew: isNew
     };
     displayNotification(wsData, params);
   }
@@ -360,12 +360,12 @@ function finishImportAfterInsert(description, callback, isNew) {
 function releaseImplentationFromId(id, callback) {
   "use strict";
   $.ajax({
-    url : amrc_root + "service.php?name=implementation_getrelease_v2&id=" + id,
-    beforeSend : function (xhr) {
+    url: amrc_root + "service.php?name=implementation_getrelease_v2&id=" + id,
+    beforeSend: function (xhr) {
       xhr.setRequestHeader("Cache-Control", "no-cache");
       xhr.setRequestHeader("Pragma", "no-cache");
     },
-    success : function (resp) {
+    success: function (resp) {
       //distant description
       var description = JSON.parse(resp);
 
@@ -402,11 +402,11 @@ function releaseImplentationFromId(id, callback) {
           var params = getParameters();
           if (params.shownotifws === 1) {
             var wsData = {
-              ws : description.mirrorName,
-              developer : description.developer,
-              revision : description.revision,
-              idext : description.id,
-              isnew : isNew
+              ws: description.mirrorName,
+              developer: description.developer,
+              revision: description.revision,
+              idext: description.id,
+              isnew: isNew
             };
             displayNotification(wsData, params);
           }
@@ -416,7 +416,7 @@ function releaseImplentationFromId(id, callback) {
         }
       });
     },
-    error : function () {
+    error: function () {
       console.log("Error while importing an implementation from repository. --> Repository not reachable...");
       callback();
     }
@@ -481,10 +481,11 @@ function loadJSFromRepositoryForMirrors(list, pos, input) {
   if (input.jsCode.indexOf(".php") !== -1) {
     docache = false;
   }
+  // docache = false; // FOR DEBUGGING SET FALSE TO ALWAYS RELOAD JS
   $.loadScript(input.jsCode, docache, function () {
     list[pos] = loadedImplementations[input.mirrorName];
     if (list[pos] === undefined) {
-      list[pos]={};
+      list[pos] = {};
       list[pos].error = "Script " + input.mirrorName + " failed to be loaded... Error compiling JS code... Link : " + input.jsCode;
       console.log("Error compiling JS code: " + input.jsCode);
     } else {
@@ -501,8 +502,8 @@ function loadJSFromRepositoryForMirrors(list, pos, input) {
     console.log("Script " + input.mirrorName + " failed to be loaded...");
     console.log(input);
     list[pos] = {
-      loadedscript : true,
-      error : "Script " + input.mirrorName + " failed to be loaded...  || "+input.jsCode
+      loadedscript: true,
+      error: "Script " + input.mirrorName + " failed to be loaded...  || " + input.jsCode
     };
   });
 }
@@ -565,7 +566,7 @@ function doesCurrentPageMatchManga(url, activatedMirrors, callback) {
 function getActivatedMirrors(callback) {
   "use strict";
   chrome.runtime.sendMessage({
-    action : "activatedMirrors"
+    action: "activatedMirrors"
   }, function (res) {
     getActivatedMirrorsWithList(res, callback);
   });
@@ -623,9 +624,9 @@ function loadJSFromRepositoryForActivatedMirrors(list, pos, input) {
     } else {
       console.log("Script " + input.mirrorName + " failed to be loaded... Error while compiling JS code... Link : " + input.jsCode);
       list[pos] = {
-        loadedscript : true,
-        listLoaded : true,
-        error : "Script " + input.mirrorName + " failed to be loaded... Error while compiling JS code... Link : " + input.jsCode
+        loadedscript: true,
+        listLoaded: true,
+        error: "Script " + input.mirrorName + " failed to be loaded... Error while compiling JS code... Link : " + input.jsCode
       };
     }
   }, function () {
@@ -633,9 +634,9 @@ function loadJSFromRepositoryForActivatedMirrors(list, pos, input) {
     console.log("Script " + input.mirrorName + " failed to be loaded...");
     console.log(input);
     list[pos] = {
-      loadedscript : true,
-      listLoaded : true,
-      error : "Script " + input.mirrorName + " failed to be loaded..."
+      loadedscript: true,
+      listLoaded: true,
+      error: "Script " + input.mirrorName + " failed to be loaded..."
     };
   });
   chrome.extension.getBackgroundPage().isReady(true)
@@ -661,31 +662,31 @@ function waitForActivatedAndListFinish(mirrorsT, callback) {
 
 function displayNotification(wsData, params) {
   "use strict";
-/*  var text = "";
-  if (wsData.revision > 0) {
-    if (wsData.isnew) {
-      text = "Implementation created by " + wsData.developer + ".";
+  /*  var text = "";
+    if (wsData.revision > 0) {
+      if (wsData.isnew) {
+        text = "Implementation created by " + wsData.developer + ".";
+      } else {
+        text = "Implementation updated by " + wsData.developer + " (revision " + wsData.revision + ").\nThis may have fixed issues on this website !";
+      }
     } else {
-      text = "Implementation updated by " + wsData.developer + " (revision " + wsData.revision + ").\nThis may have fixed issues on this website !";
+      text = "Implementation updated for a temporary version. (developer : " + wsData.developer + ").\nIf you want to come back to normal revision, go to option page, 'Supported websites' tab.";
     }
-  } else {
-    text = "Implementation updated for a temporary version. (developer : " + wsData.developer + ").\nIf you want to come back to normal revision, go to option page, 'Supported websites' tab.";
-  }
-  text += "\nYou can discuss this implementation by clicking on the notification (login required)";
-  var notif = window.webkitNotifications.createNotification(chrome.extension.getURL('img/icon-32.png'), wsData.ws, text);
-  notif.url = "http://community.allmangasreader.com/comments.php?type=1&id=" + wsData.idext;
-  notif.onclick = function () {
-    var myurl = this.url;
-    // notif.cancel() should hide the notif once clicked
-    notif.cancel();
-    chrome.tabs.create({
-      "url" : myurl
-    });
-  };
-  notif.show();
-  if (params.notificationtimer > 0) {
-    setTimeout(function () {
+    text += "\nYou can discuss this implementation by clicking on the notification (login required)";
+    var notif = window.webkitNotifications.createNotification(chrome.extension.getURL('img/icon-32.png'), wsData.ws, text);
+    notif.url = "http://community.allmangasreader.com/comments.php?type=1&id=" + wsData.idext;
+    notif.onclick = function () {
+      var myurl = this.url;
+      // notif.cancel() should hide the notif once clicked
       notif.cancel();
-    }, params.notificationtimer * 1000);
-  }*/
+      chrome.tabs.create({
+        "url" : myurl
+      });
+    };
+    notif.show();
+    if (params.notificationtimer > 0) {
+      setTimeout(function () {
+        notif.cancel();
+      }, params.notificationtimer * 1000);
+    }*/
 }
